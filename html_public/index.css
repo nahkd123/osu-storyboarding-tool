@@ -1,0 +1,152 @@
+* {
+    font-family: Calibri, monospace;
+}
+
+div#help p {
+    margin: 0;
+    padding: 5px 12px;
+}
+
+div#help h1 {
+    margin: 0;
+    color: #efefef;
+    padding: 5px 12px;
+}
+
+div#help {
+    background-color: #636363;
+    margin: 15px;
+    padding: 12px 15px;
+    border-radius: 5px;
+    border: 1px solid #9c9c9c;
+    color: white;
+}
+
+div.layer > canvas {word-spacing: normal;text-transform: none;text-indent: 0px;text-shadow: none;display: inline-block;text-align: center;align-items: flex-start;cursor: default;box-sizing: border-box;top: 0;left: 180px;position: absolute;}
+
+floatmenu > button {
+    background: none;
+    border: 0;
+    color: #efefef;
+    padding: 5px 12px;
+    width: -webkit-fill-available;
+    text-align: left;
+    outline: none;
+}
+
+floatmenu > button:hover {
+    background: #2b2b2b;
+}
+
+floatmenu {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: #464646;
+    border: 1px solid #2d2d2d;
+    border-radius: 4px;
+    padding: 5px 0;
+    width: 200px;
+}
+
+button.layerbutton.toggle {
+    background: none;
+    border: 0;
+    outline: none;
+    padding: 5px;
+    color: #e6e6e6;
+    text-align: left;
+    border-right: 1px solid #989898;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 30px;
+}
+
+button.layername {
+    background: none;
+    border: 0;
+    outline: none;
+    padding: 5px 12px;
+    color: white;
+    width: 150px;
+    text-align: left;
+    border-right: 1px solid #5d5d5d;
+    position: absolute;
+    top: 0;
+    left: 30px;
+}
+
+button.layername.selected {
+    background: #9a9a9a;
+}
+
+span.layername {
+    color: white;
+    padding: 5px 12px;
+}
+
+div#layersview > div.layer {
+    background: #888888;
+    position: relative;
+    height: 27px;
+    border-bottom: 1px solid #797979;
+}
+
+span {
+    font-size: 12px;
+}
+
+body {
+    background: url(bg.png);
+    background-size: cover;
+}
+
+body > header {
+    border-bottom: 1px solid #757575;
+}
+
+div#timelinePanel {
+    left: 642px;
+    top: 28px;
+    width: calc(100% - 642px);
+}
+
+div.panel {
+    display: inline-block;
+    position: absolute;
+    height: calc(100% - 28px);
+    background: #00000096;
+}
+
+canvas#screen {
+    border: 1px solid #8a8a8a;
+}
+
+header > button {
+    background: none;
+    border: 0;
+    color: #cecece;
+    outline: none;
+    padding: 5px 12px;
+}
+
+header > button:hover {
+    background-color: #353535;
+    color: white;
+}
+html, body {
+    margin: 0;
+    width: 100%; height: 100%;
+}
+header {
+    font-family: Calibri, monospace;
+    background-color: #636363;
+    padding: 0 12px;
+    font-size: 12px;
+    color: #efefef;
+}
+
+header > span {
+    padding: 5px 12px;
+}
