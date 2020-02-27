@@ -2,6 +2,10 @@
     font-family: Calibri, monospace;
 }
 
+canvas#timeline {
+    margin-left: 180px;
+}
+
 div#help p {
     margin: 0;
     padding: 5px 12px;

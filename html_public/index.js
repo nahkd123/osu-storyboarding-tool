@@ -34,7 +34,10 @@ var Session = {
     },
     player: {
         seek: 0,
-        state: "paused"
+        state: "paused",
+        seekBar: document.querySelector("canvas#timeline").getContext("2d"),
+        seekBarZoom: 10, // 10/1000 ms
+        seekScroll: 0,
     }
 };
 
@@ -92,6 +95,20 @@ const EditorObjects = {
             green: Math.round(Math.random() * 255),
             blue: b
         }
+    },
+    animation(obj) {
+        return {
+            type: "animation",
+            x: 0,
+            y: 0,
+            width: 15,
+            height: 15,
+            object: obj,
+            property: "position",
+            fromValue: [obj.x, obj.y],
+            toValue: [obj.x, obj.y],
+            easing: null
+        };
     }
 };
 function renderObject(obj, ctx) {
@@ -100,7 +117,8 @@ function renderObject(obj, ctx) {
         ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
     }
 }
-function renderSelected(obj, ctx) {
+function renderSelected(layer, ctx) {
+    var obj = layer.object;
     ctx.lineWidth = 1;
     ctx.strokeStyle = "#efefef";
     ctx.strokeRect(
@@ -114,14 +132,20 @@ function renderSelected(obj, ctx) {
     ctx.fillRect(obj.x + obj.width + 5, obj.y + obj.height + 5, 7, 7);
     ctx.fillRect(obj.x - 12, obj.y + obj.height + 5, 7, 7);
     ctx.fillRect(obj.x + obj.width + 5, obj.y - 12, 7, 7);
+
+    var cttx = layer.linked.timeline.getContext("2d");
+    cttx.fillStyle = "#ceceff";
+    const rectX = (layer.startTime - Session.player.seekScroll) / Session.player.seekBarZoom;
+    const rectW = (layer.endTime - layer.startTime - Session.player.seekScroll) / Session.player.seekBarZoom;
+    cttx.fillRect(rectX, 0, 5, 29);
+    cttx.fillRect(rectX + rectW - 5, 0, 5, 29);
 }
 function addLayer(obj) {
     var out = {
         toggled: true,
         name: "Unnamed " + obj.type,
-        startTime: 0,
-        endTime: 1000,
-        animations: [],
+        startTime: Session.player.seek,
+        endTime: Session.player.seek + 1000,
         object: obj
     };
     if (SelectedLayer !== null) SelectedLayer.linked.select.classList.remove("selected");
@@ -146,7 +170,7 @@ function addLayer(obj) {
     layerDOM.append(selectButton);
 
     var timelineView = document.createElement("canvas");
-    timelineView.width = 100;
+    timelineView.width = Session.player.seekBar.canvas.width;
     timelineView.height = 27;
     layerDOM.append(timelineView);
 
@@ -165,12 +189,52 @@ function addLayer(obj) {
         SelectedLayer = out;
         selectButton.classList.add("selected");
     });
+    (function() {
+        var mousedown = false;
+        var mousex = 0;
+        var mousey = 0;
+
+        timelineView.addEventListener("mousedown", (event) => {
+            var rectX = (out.startTime - Session.player.seekScroll) / Session.player.seekBarZoom;
+            var rectXEnd = (out.endTime - Session.player.seekScroll) / Session.player.seekBarZoom;
+            mousex = event.offsetX;
+            mousey = event.offsetY;
+            if (mousex >= rectX && mousex <= rectXEnd) {
+                mousedown = true;
+                if (SelectedLayer !== out) {
+                    if (SelectedLayer) SelectedLayer.linked.select.classList.remove("selected");
+                    SelectedLayer = out;
+                    selectButton.classList.add("selected");
+                } else console.log("after selected");
+            } else {
+                if (SelectedLayer) SelectedLayer.linked.select.classList.remove("selected");
+                SelectedLayer = null;
+            }
+        });
+        timelineView.addEventListener("mousemove", (event) => {
+            if (mousedown) {
+                var rectX = (out.startTime - Session.player.seekScroll) / Session.player.seekBarZoom;
+                var rectXEnd = (out.endTime - Session.player.seekScroll) / Session.player.seekBarZoom;
+                const timedelta = out.endTime - out.startTime;
+                out.startTime += (event.offsetX - mousex) * Session.player.seekBarZoom;
+                out.endTime = out.startTime + timedelta;
+                mousex = event.offsetX;
+                mousey = event.offsetY;
+            }
+        });
+        timelineView.addEventListener("mouseup", (event) => {
+            mousedown = false;
+        });
+    })();
 
     var layerMenu = FloatMenu.create();
     layerMenu.buttons["Remove Object"] = () => {
         layerDOM.remove();
         Layers.splice(Layers.indexOf(out), 1);
         if (SelectedLayer === out) SelectedLayer = null;
+    };
+    layerMenu.buttons["Add animation"] = () => {
+        addLayer(EditorObjects.animation(obj));
     };
     layerMenu.buttons["Close"] = () => {};
     selectButton.addEventListener("contextmenu", (event) => {
@@ -193,6 +257,51 @@ function addLayer(obj) {
 function play() {
     if (Session.player.state === "paused") Session.player.state = "playing";
     else Session.player.state = "paused";
+}
+function renderSeekBars() {
+    const seekZoomSeg = 1000 / Session.player.seekBarZoom;
+    const seek = (Session.player.seek - Session.player.seekScroll) / Session.player.seekBarZoom;
+    var ctx = Session.player.seekBar;
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+    ctx.fillStyle = "#ceceff";
+    ctx.beginPath();
+    ctx.moveTo(seek, 0);
+    ctx.lineTo(seek + 7, 7);
+    ctx.lineTo(seek + 7, 25);
+    ctx.lineTo(seek - 7, 25);
+    ctx.lineTo(seek - 7, 7);
+    ctx.fill();
+
+    Layers.forEach(layer => {
+        const start = layer.startTime - Session.player.seekScroll;
+        const end = layer.startTime - Session.player.seekScroll;
+
+        var cttx = layer.linked.timeline.getContext("2d");
+        cttx.clearRect(0, 0, layer.linked.timeline.width, layer.linked.timeline.height);
+
+        // render the bar thing
+        cttx.fillStyle = "#ceffce";
+        const rectX = (layer.startTime - Session.player.seekScroll) / Session.player.seekBarZoom;
+        const rectW = (layer.endTime - layer.startTime - Session.player.seekScroll) / Session.player.seekBarZoom;
+        cttx.fillRect(rectX, 5, rectW, 19);
+
+        /* var lineIndex = 0;
+        cttx.strokeStyle = "#efefef";
+        cttx.beginPath();
+        while (lineIndex * seekZoomSeg <= layer.linked.timeline.width) {
+            cttx.moveTo(lineIndex * seekZoomSeg, 15);
+            cttx.lineTo(lineIndex * seekZoomSeg, 29);
+            lineIndex++;
+        }
+        cttx.stroke(); */
+        cttx.lineWidth = 2;
+        cttx.strokeStyle = "#787878";
+        cttx.beginPath();
+        cttx.moveTo(seek, 0);
+        cttx.lineTo(seek, 29);
+        cttx.stroke();
+    });
 }
 const Menus = {
     timelineAdd: FloatMenu.create(),
@@ -265,6 +374,19 @@ Menus.canvas.buttons["Close"] = (event) => {}
         mousedown[0] = false;
     }
 })();
+// Other UI-related events
+function resize(event) {
+    Session.player.seekBar.canvas.width = window.innerWidth - 822;
+}
+window.addEventListener("resize", resize);
+resize();
+
+// Shortcut + Keys
+document.addEventListener("keypress", (event) => {
+    if (event.code === "Space") play();
+    if (event.code === "KeyA") Session.player.seek -= 10;
+    if (event.code === "KeyD") Session.player.seek += 10;
+});
 
 // This function will be called 60 frames per second (maybe higher, depends on user hardware)
 function updateFrame(timestamp) {
@@ -290,8 +412,10 @@ function updateFrame(timestamp) {
         renderObject(layer.object, ctx);
     }});
 
+    renderSeekBars();
+
     // Overlays
-    if (SelectedLayer !== null) renderSelected(SelectedLayer.object, ctx);
+    if (SelectedLayer !== null) renderSelected(SelectedLayer, ctx);
     if (StoryboardConfigure.RenderDebug) renderDebug(ctx);
 
     Session.updates.timestamp = timestamp;
