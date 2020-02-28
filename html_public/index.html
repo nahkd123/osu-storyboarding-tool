@@ -4,6 +4,7 @@
         <title>osu! storyboarding tool</title>
         <link href="index.css" rel="stylesheet">
         <script src="floatmenu.js"></script>
+        <script src="bezier.js"></script>
     </head>
     <body>
         <header>
@@ -25,14 +26,21 @@
                 <span>Timeline</span>
                 <button onclick="FloatMenu.displayMenu(Menus.timelineAdd, event.clientX, event.clientY)">Add...</button>
             </header>
-            <div id="layersview"></div>
             <canvas id="timeline" height="30"></canvas>
-            <div id="help">
+            <div id="layersview"></div>
+            <!--div id="help">
                 <h1>Help Guide</h1>
                 <p>Click 'Add' button in 'Timeline' to add new object/layer</p>
                 <p>Right click layer name for more options (as well as object in canvas)</p>
                 <p>The '✅'/'⬜' button is for toggling visiblity</p>
-            </div>
+            </div-->
+        </div>
+        <div id="propertiles" class="panel">
+            <header>
+                <span>Propertiles</span>
+                <button>ABC</button>
+            </header>
+            <div id="propertilesview"></div>
         </div>
         <script src="index.js"></script>
     </body>

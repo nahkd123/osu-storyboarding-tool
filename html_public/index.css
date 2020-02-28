@@ -2,6 +2,62 @@
     font-family: Calibri, monospace;
 }
 
+div.propertyvalue.list {
+    user-select: none;
+}
+
+div.propertyvalue.list:focus {
+    outline: auto;
+}
+
+div.propertyvalue.list::before {content: '>';font-family: monospace;width: 15px;margin-right: 5px;background: #868686;padding: 0 12px;border-radius: 5px;}
+
+div#property > * {
+    display: inline-block;
+    font-size: 12px;
+    padding: 5px 12px;
+    color: #ffffff;
+}
+
+div.propertyvalue.multiplevalues {
+    -webkit-user-modify: read-write;
+    overflow-wrap: break-word;
+    -webkit-line-break: after-white-space;
+    font-family: monospace;
+}
+
+div.propertyname {
+    width: 150px;
+    background: #383838;
+}
+
+div#property {
+    background: #444444;
+}
+
+div#propertiles {
+    left: 642px;
+    top: 335px;
+    width: calc(100% - 642px);
+    height: calc(100% - 335px);
+}
+
+div#layersview::-webkit-scrollbar {
+    background: #00000029;
+    width: 7px;
+}
+
+div#layersview::-webkit-scrollbar-thumb {
+    background: #ffffff30;
+}
+
+div#layersview {
+    overflow-y: scroll;
+    overflow-x: hidden;
+    height: 250px;
+    margin-top: -4px;
+}
+
 canvas#timeline {
     margin-left: 180px;
 }
@@ -79,6 +135,8 @@ button.layername {
     position: absolute;
     top: 0;
     left: 30px;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 button.layername.selected {
@@ -97,10 +155,6 @@ div#layersview > div.layer {
     border-bottom: 1px solid #797979;
 }
 
-span {
-    font-size: 12px;
-}
-
 body {
     background: url(bg.png);
     background-size: cover;
@@ -114,6 +168,7 @@ div#timelinePanel {
     left: 642px;
     top: 28px;
     width: calc(100% - 642px);
+    height: fit-content;
 }
 
 div.panel {
@@ -121,6 +176,18 @@ div.panel {
     position: absolute;
     height: calc(100% - 28px);
     background: #00000096;
+}
+
+div.panel::-webkit-scrollbar {
+    width: 7px;
+    background: #888888;
+    border: 1px solid #545454;
+    border-radius: 100px;
+}
+
+div.panel::-webkit-scrollbar-thumb {
+    background: #545454;
+    border-radius: 100px;
 }
 
 canvas#screen {

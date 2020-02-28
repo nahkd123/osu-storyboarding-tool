@@ -16,6 +16,19 @@ const StoryboardConfigure = {
     },
     RenderDebug: true
 };
+const Enums = {
+    property: ["position", "scale", "alpha"],
+    easing: ["none", "in", "out", "smooth in", "smooth out"]
+};
+const DefaultValues = {
+    "position": ["x", "y"],
+    "scale": [],
+    "alpha": ["alpha"]
+};
+const Easing = {
+    "none": bezier(0, 0, 1, 1),
+    "in": bezier(0.42, 0, 1, 1),
+};
 var Session = {
     updates: {
         timestamp: 0,
@@ -38,12 +51,28 @@ var Session = {
         seekBar: document.querySelector("canvas#timeline").getContext("2d"),
         seekBarZoom: 10, // 10/1000 ms
         seekScroll: 0,
-    }
+    },
+    propertilesViewer: document.querySelector("div#propertilesview")
 };
 
 var Layers = [];
+var AnimationLayers = [];
 var LayersDOM = document.querySelector("div#layersview");
-var SelectedLayer = null;
+// var SelectedLayer = null;
+(function() {
+    var _selectedLayer = null;
+    Object.defineProperties(window, {SelectedLayer: {
+        get() {
+            return _selectedLayer;
+        },
+        set(value) {
+            if (_selectedLayer !== null) {
+            }
+            _selectedLayer = value;
+            toPropertilesView(value?.object);
+        }
+    }});
+})();
 
 /**
  * Draw playarea (510 x 385) guide
@@ -84,7 +113,7 @@ function renderDebug(ctx) {
 
 // We'll use these functions for buttons and stuffs owo
 const EditorObjects = {
-    soild(x, y, w, h, r = 255, g = 255, b = 255) {
+    soild(x, y, w, h, r = 255, g = 255, b = 255, a = 255) {
         return {
             type: "soild",
             x: x,
@@ -92,58 +121,74 @@ const EditorObjects = {
             width: w,
             height: h,
             red: r,
-            green: Math.round(Math.random() * 255),
-            blue: b
+            green: g,
+            blue: b,
+            alpha: a
         }
     },
     animation(obj) {
         return {
             type: "animation",
-            x: 0,
-            y: 0,
-            width: 15,
-            height: 15,
             object: obj,
-            property: "position",
+            // property: "position",
+            _property: "position",
+            get property() {return this._property;},
+            set property(value) {
+                this._property = value;
+                this.fromValue = []; this.toValue = [];
+                DefaultValues[value].forEach((p, i) => {
+                    if (typeof p === "number") {this.fromValue[i] = p; this.toValue[i] = p;}
+                    else if (typeof p === "string") {this.fromValue[i] = this.object[p]; this.toValue[i] = this.object[p];}
+                });
+            },
             fromValue: [obj.x, obj.y],
             toValue: [obj.x, obj.y],
-            easing: null
+            easing: "none"
         };
     }
 };
 function renderObject(obj, ctx) {
     if (obj.type === "soild") {
-        ctx.fillStyle = `rgb(${obj.red}, ${obj.green}, ${obj.blue})`;
+        ctx.fillStyle = `rgba(${obj.red}, ${obj.green}, ${obj.blue}, ${obj.alpha / 255})`;
         ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
     }
 }
+function processAnimation(layer) {
+    var obj = layer.object;
+    const progress = Easing[obj.easing]((layer.endTime - Session.player.seek) / (layer.endTime - layer.startTime));
+    if (obj.property === "position") {
+        obj.object.x = (obj.fromValue[0] - obj.toValue[0]) * progress + obj.toValue[0];
+        obj.object.y = (obj.fromValue[1] - obj.toValue[1]) * progress + obj.toValue[1];
+    } else if (obj.property === "alpha") {obj.object.alpha = (obj.fromValue[0] - obj.toValue[0]) * progress + obj.toValue[0];}
+}
 function renderSelected(layer, ctx) {
     var obj = layer.object;
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = "#efefef";
-    ctx.strokeRect(
-        obj.x - 5,
-        obj.y - 5,
-        obj.width + 10,
-        obj.height + 10
-    );
-    ctx.fillStyle = "#ceceff";
-    ctx.fillRect(obj.x - 12, obj.y - 12, 7, 7);
-    ctx.fillRect(obj.x + obj.width + 5, obj.y + obj.height + 5, 7, 7);
-    ctx.fillRect(obj.x - 12, obj.y + obj.height + 5, 7, 7);
-    ctx.fillRect(obj.x + obj.width + 5, obj.y - 12, 7, 7);
+    if (obj.type !== "animation") {
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "#efefef";
+        ctx.strokeRect(obj.x - 5, obj.y - 5, obj.width + 10, obj.height + 10);
+        ctx.fillStyle = "#ceceff";
+        ctx.fillRect(obj.x - 12, obj.y - 12, 7, 7);
+        ctx.fillRect(obj.x + obj.width + 5, obj.y + obj.height + 5, 7, 7);
+        ctx.fillRect(obj.x - 12, obj.y + obj.height + 5, 7, 7);
+        ctx.fillRect(obj.x + obj.width + 5, obj.y - 12, 7, 7);
+    } else {
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "#efefef";
+        ctx.strokeRect(obj.object.x - 5, obj.object.y - 5, obj.object.width + 10, obj.object.height + 10);
+    }
 
     var cttx = layer.linked.timeline.getContext("2d");
     cttx.fillStyle = "#ceceff";
     const rectX = (layer.startTime - Session.player.seekScroll) / Session.player.seekBarZoom;
-    const rectW = (layer.endTime - layer.startTime - Session.player.seekScroll) / Session.player.seekBarZoom;
+    const rectW = (layer.endTime - layer.startTime) / Session.player.seekBarZoom;
     cttx.fillRect(rectX, 0, 5, 29);
     cttx.fillRect(rectX + rectW - 5, 0, 5, 29);
 }
 function addLayer(obj) {
     var out = {
         toggled: true,
-        name: "Unnamed " + obj.type,
+        name: obj.type === "animation"? "Animation (" + obj.object.linkedLayer.name + ")" : "Unnamed " + obj.type,
         startTime: Session.player.seek,
         endTime: Session.player.seek + 1000,
         object: obj
@@ -152,6 +197,7 @@ function addLayer(obj) {
     SelectedLayer = out;
     // Layers[Layers.length] = out;
     Layers.push(out);
+    if (obj.type === "animation") AnimationLayers.push(out);
 
     // Create new element
     var layerDOM = document.createElement("div");
@@ -193,19 +239,24 @@ function addLayer(obj) {
         var mousedown = false;
         var mousex = 0;
         var mousey = 0;
+        var ends = 0;
 
         timelineView.addEventListener("mousedown", (event) => {
             var rectX = (out.startTime - Session.player.seekScroll) / Session.player.seekBarZoom;
             var rectXEnd = (out.endTime - Session.player.seekScroll) / Session.player.seekBarZoom;
             mousex = event.offsetX;
             mousey = event.offsetY;
-            if (mousex >= rectX && mousex <= rectXEnd) {
+            ends = 0;
+            if (mousex >= rectX - 5 && mousex <= rectXEnd + 5) {
                 mousedown = true;
                 if (SelectedLayer !== out) {
                     if (SelectedLayer) SelectedLayer.linked.select.classList.remove("selected");
                     SelectedLayer = out;
                     selectButton.classList.add("selected");
-                } else console.log("after selected");
+                } else {
+                    if (mousex >= rectX - 5 && mousex <= rectX + 5) {ends = 1;}
+                    else if (mousex >= rectXEnd - 5 && mousex <= rectXEnd + 5) {ends = 2;}
+                }
             } else {
                 if (SelectedLayer) SelectedLayer.linked.select.classList.remove("selected");
                 SelectedLayer = null;
@@ -215,9 +266,16 @@ function addLayer(obj) {
             if (mousedown) {
                 var rectX = (out.startTime - Session.player.seekScroll) / Session.player.seekBarZoom;
                 var rectXEnd = (out.endTime - Session.player.seekScroll) / Session.player.seekBarZoom;
-                const timedelta = out.endTime - out.startTime;
-                out.startTime += (event.offsetX - mousex) * Session.player.seekBarZoom;
-                out.endTime = out.startTime + timedelta;
+                if (ends === 0) {
+                    // Move bar
+                    const timedelta = out.endTime - out.startTime;
+                    out.startTime += (event.offsetX - mousex) * Session.player.seekBarZoom;
+                    out.endTime = out.startTime + timedelta;
+                } else if (ends === 1) {
+                    out.startTime += (event.offsetX - mousex) * Session.player.seekBarZoom;
+                } else if (ends === 2) {
+                    out.endTime += (event.offsetX - mousex) * Session.player.seekBarZoom;
+                }
                 mousex = event.offsetX;
                 mousey = event.offsetY;
             }
@@ -243,14 +301,17 @@ function addLayer(obj) {
         FloatMenu.displayMenu(layerMenu, event.clientX, event.clientY);
     });
 
-    LayersDOM.prepend(layerDOM);
+    if (obj.type !== "animation") LayersDOM.prepend(layerDOM);
+    else LayersDOM.insertBefore(layerDOM, obj.object.linkedLayer.linked.dom.nextSibling);
     
     out.linked = {
         toggle: toggleButton,
         select: selectButton,
         timeline: timelineView,
-        rclickMenu: layerMenu
+        rclickMenu: layerMenu,
+        dom: layerDOM
     };
+    obj.linkedLayer = out;
 
     return out;
 }
@@ -264,13 +325,21 @@ function renderSeekBars() {
     var ctx = Session.player.seekBar;
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
+    ctx.fillStyle = "#efefef";
+    ctx.beginPath();
+    ctx.moveTo(seekZoomSeg, 10);
+    ctx.lineTo(seekZoomSeg + 5, 15);
+    ctx.lineTo(seekZoomSeg, 20);
+    ctx.lineTo(seekZoomSeg - 5, 15);
+    ctx.fill();
+
     ctx.fillStyle = "#ceceff";
     ctx.beginPath();
-    ctx.moveTo(seek, 0);
-    ctx.lineTo(seek + 7, 7);
-    ctx.lineTo(seek + 7, 25);
-    ctx.lineTo(seek - 7, 25);
-    ctx.lineTo(seek - 7, 7);
+    ctx.moveTo(seek, 30);
+    ctx.lineTo(seek + 7, 23);
+    ctx.lineTo(seek + 7, 10);
+    ctx.lineTo(seek - 7, 10);
+    ctx.lineTo(seek - 7, 23);
     ctx.fill();
 
     Layers.forEach(layer => {
@@ -281,9 +350,9 @@ function renderSeekBars() {
         cttx.clearRect(0, 0, layer.linked.timeline.width, layer.linked.timeline.height);
 
         // render the bar thing
-        cttx.fillStyle = "#ceffce";
+        cttx.fillStyle = (layer.object.type === "animation")? "#ffcece" : "#ceffce";
         const rectX = (layer.startTime - Session.player.seekScroll) / Session.player.seekBarZoom;
-        const rectW = (layer.endTime - layer.startTime - Session.player.seekScroll) / Session.player.seekBarZoom;
+        const rectW = (layer.endTime - layer.startTime) / Session.player.seekBarZoom;
         cttx.fillRect(rectX, 5, rectW, 19);
 
         /* var lineIndex = 0;
@@ -302,6 +371,58 @@ function renderSeekBars() {
         cttx.lineTo(seek, 29);
         cttx.stroke();
     });
+}
+function createPropertyDOM(obj, propertyName) {
+    var out = document.createElement("div");
+    out.id = "property";
+
+    var name = document.createElement("div");
+    name.classList.add("propertyname");
+    name.textContent = propertyName;
+    out.append(name);
+
+    var val = document.createElement("div");
+    val.classList.add("propertyvalue");
+
+    if (obj[propertyName] instanceof Array) {
+        // Multiple values
+        val.classList.add("multiplevalues");
+        val.textContent = obj[propertyName].join(",");
+
+        val.addEventListener("input", (event) => {
+            obj[propertyName] = [];
+            val.textContent.split(",").forEach(v => {obj[propertyName].push(parseFloat(v))});
+        });
+    } else if (typeof obj[propertyName] === "string") {
+        val.classList.add("list");
+        val.textContent = obj[propertyName];
+
+        var menu = FloatMenu.create();
+        Enums[propertyName].forEach(p => {
+            menu.buttons[p] = () => {
+                obj[propertyName] = p;
+                val.textContent = p;
+            };
+        });
+        val.addEventListener("click", (event) => {FloatMenu.displayMenu(menu, event.clientX, event.clientY)});
+    } else if (typeof obj[propertyName] === "number") {
+        // Single value
+        val.classList.add("multiplevalues");
+        val.textContent = obj[propertyName] + "";
+
+        val.addEventListener("input", (event) => {
+            obj[propertyName] = parseFloat(val.textContent);
+        });
+    }
+    out.append(val);
+    Session.propertilesViewer.append(out);
+    return out;
+}
+function toPropertilesView(obj) {
+    // Remove old propertiles
+    while (Session.propertilesViewer.children.length > 0) Session.propertilesViewer.children[0].remove();
+
+    if (obj !== undefined && obj !== null) for (var pname in obj) if (pname !== "type" && pname !== "linkedLayer" && !(pname.startsWith("_"))) createPropertyDOM(obj, pname);
 }
 const Menus = {
     timelineAdd: FloatMenu.create(),
@@ -374,6 +495,14 @@ Menus.canvas.buttons["Close"] = (event) => {}
         mousedown[0] = false;
     }
 })();
+(function() {
+    Session.player.seekBar.canvas.addEventListener("wheel", (event) => {
+        if (event.ctrlKey) {
+            Session.player.seekBarZoom += Math.sign(event.deltaY);
+            event.preventDefault();
+        } else Session.player.seekScroll += Math.sign(event.deltaY) * 100;
+    });
+})();
 // Other UI-related events
 function resize(event) {
     Session.player.seekBar.canvas.width = window.innerWidth - 822;
@@ -407,6 +536,10 @@ function updateFrame(timestamp) {
         Session.player.seek += timedelta;
     }
     const seek = Session.player.seek;
+    // We process animation layers first, then we'll process object layers
+    AnimationLayers.forEach(layer => {if (layer.toggled && seek >= layer.startTime && seek <= layer.endTime) {
+        processAnimation(layer);
+    }});
     Layers.forEach(layer => {if (layer.toggled && seek >= layer.startTime && seek <= layer.endTime) {
         // Render layer uwu
         renderObject(layer.object, ctx);
